@@ -680,14 +680,8 @@ nvmet_vhost_set_endpoint(struct nvmet_vhost_ctrl *ctrl,
 	  pr_err("Pointer to ctrl is error %ld\n", PTR_ERR(ctrl));
 		return -EINVAL;
 	}
-
+	pr_warn("Set endpoint start");
 	ctrl->num_queues = 1;
-#if 0
-	ctrl->num_queues = subsys->max_qid + 1;
-	ctrl->opaque = ctrl;
-	ctrl->start = nvmet_vhost_start_ctrl;
-	ctrl->parse_extra_admin_cmd = nvmet_vhost_parse_admin_cmd;
-#endif
 	num_queues = ctrl->num_queues;
 
 	ctrl->cqs = kzalloc(sizeof(struct nvme_vhost_cq *) * num_queues, GFP_KERNEL);
@@ -707,7 +701,7 @@ nvmet_vhost_set_endpoint(struct nvmet_vhost_ctrl *ctrl,
 		ret = -ENOMEM;
 		goto free_sqs;
 	}
-
+	pr_warn("Set endpoint end");
 	return 0;
 
 free_sqs:
@@ -715,7 +709,7 @@ free_sqs:
 free_cqs:
 	kfree(ctrl->cqs);
 out_ctrl_put:
-
+	pr_warn("Set endpoint end with err");
 	return ret;
 }
 
@@ -762,6 +756,10 @@ static int nvmet_vhost_set_eventfd(struct nvmet_vhost_ctrl *ctrl, void __user *a
 	int num;
 	int ret;
 
+	if (IS_ERR(ctrl)) {
+		return -EINVAL;
+	}
+
 	ret = copy_from_user(&eventfd, argp, sizeof(struct nvmet_vhost_eventfd));
 	if (unlikely(ret))
 		return ret;
@@ -770,7 +768,9 @@ static int nvmet_vhost_set_eventfd(struct nvmet_vhost_ctrl *ctrl, void __user *a
 	if (num > ctrl->ctrl->subsys->max_qid)
 		return -EINVAL;
 
-	ctrl->eventfd[num].call = eventfd_fget(eventfd.fd);
+	pr_err("Set eventfd is not implemented");
+
+	/*ctrl->eventfd[num].call = eventfd_fget(eventfd.fd);
 	if (IS_ERR(ctrl->eventfd[num].call))
 		return -EBADF;
 	ctrl->eventfd[num].call_ctx = eventfd_ctx_fileget(ctrl->eventfd[num].call);
@@ -781,7 +781,7 @@ static int nvmet_vhost_set_eventfd(struct nvmet_vhost_ctrl *ctrl, void __user *a
 
 	ctrl->eventfd[num].irq_enabled = eventfd.irq_enabled;
 	ctrl->eventfd[num].vector = eventfd.vector;
-
+	*/
 	return 0;
 }
 
@@ -941,6 +941,7 @@ static int nvmet_vhost_ioc_bar(struct nvmet_vhost_ctrl *ctrl, void __user *argp)
 	if (unlikely(ret))
 		return ret;
 
+	pr_warn("nvmet_vhost_ioc_bar ioctl");
 	if (bar.type == VHOST_NVME_BAR_READ) {
 		u64 val;
 		ret = nvmet_vhost_bar_read(ctrl->ctrl, bar.offset, &val);
@@ -962,6 +963,7 @@ static int nvmet_vhost_open(struct inode *inode, struct file *f)
 		return -ENOMEM;
 
 	/* We don't use virtqueue */
+	pr_warn("vhost_dev init in kernel");
 	vhost_dev_init(&ctrl->vdev, NULL, 0, 0, 0, 0,
 		       false, nvmet_vhost_process_iotlb_msg);
 
@@ -1034,8 +1036,8 @@ static int nvmet_vhost_release(struct inode *inode, struct file *f)
 	// nvmet_vhost_clear_eventfd(ctrl);
 	// nvmet_vhost_clear_ctrl(ctrl);
 
-	vhost_dev_stop(&ctrl->vdev);
-	vhost_dev_cleanup(&ctrl->vdev);
+	// vhost_dev_stop(&ctrl->vdev);
+	// vhost_dev_cleanup(&ctrl->vdev);
 
 	kfree(ctrl);
 	return 0;
@@ -1053,33 +1055,42 @@ static long nvmet_vhost_ioctl(struct file *f, unsigned int ioctl,
 	struct nvmet_vhost_ctrl *ctrl = f->private_data;
 	struct vhost_nvme_target conf;
 	void __user *argp = (void __user *)arg;
-	// u64 __user *featurep = argp;
 	u64 features;
 	int r;
-        pr_warn("VHOST GET IOCTL %d", ioctl);
+
+    if (IS_ERR(ctrl)) {
+	  pr_err("Pointer to ctrl is error %ld\n", PTR_ERR(ctrl));
+		return -EINVAL;
+	}
 
 	switch (ioctl) {
 	case VHOST_NVME_SET_ENDPOINT:
+		pr_warn("VHOST_NVME_SET_ENDPOINT");
 		if (copy_from_user(&conf, argp, sizeof(conf)))
 			return -EFAULT;
 
 		return nvmet_vhost_set_endpoint(ctrl, &conf);
 	case VHOST_NVME_CLEAR_ENDPOINT:
+		pr_warn("VHOST_NVME_CLEAR_ENDPOINT");
 		if (copy_from_user(&conf, argp, sizeof(conf)))
 			return -EFAULT;
 
 		return nvmet_vhost_clear_endpoint(ctrl, &conf);
 	case VHOST_NVME_SET_EVENTFD:
+		pr_warn("VHOST_NVME_SET_EVENTFD");
 		r = nvmet_vhost_set_eventfd(ctrl, argp);
 		return r;
 	case VHOST_NVME_BAR:
+		pr_warn("VHOST_NVME_BAR");
 		return nvmet_vhost_ioc_bar(ctrl, argp);
 	case VHOST_GET_FEATURES:
+		pr_warn("VHOST_GET_FEATURES");
 		features = VHOST_FEATURES;
 		if (copy_to_user(argp, &features, sizeof(features)))
 			return -EFAULT;
 		return 0;
 	case VHOST_SET_FEATURES:
+		pr_warn("VHOST_SET_FEATURES");
 		if (copy_from_user(&features, argp, sizeof(features)))
 			return -EFAULT;
 		return vhost_nvme_set_features(ctrl, features);

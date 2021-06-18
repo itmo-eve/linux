@@ -1854,9 +1854,11 @@ long vhost_dev_ioctl(struct vhost_dev *d, unsigned int ioctl, void __user *argp)
 
 	switch (ioctl) {
 	case VHOST_SET_MEM_TABLE:
+		printk("VHOST_SET_MEM_TABLE\n");
 		r = vhost_set_memory(d, argp);
 		break;
 	case VHOST_SET_LOG_BASE:
+		printk("HOST_SET_LOG_BASE\n");
 		if (copy_from_user(&p, argp, sizeof p)) {
 			r = -EFAULT;
 			break;
@@ -1879,6 +1881,7 @@ long vhost_dev_ioctl(struct vhost_dev *d, unsigned int ioctl, void __user *argp)
 		}
 		break;
 	case VHOST_SET_LOG_FD:
+		printk("VHOST_SET_LOG_FD\n");
 		r = get_user(fd, (int __user *)argp);
 		if (r < 0)
 			break;
@@ -1897,6 +1900,7 @@ long vhost_dev_ioctl(struct vhost_dev *d, unsigned int ioctl, void __user *argp)
 			eventfd_ctx_put(ctx);
 		break;
 	default:
+		printk("DEFAULT IOCTL %d",ioctl);
 		r = -ENOIOCTLCMD;
 		break;
 	}
