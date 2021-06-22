@@ -640,6 +640,7 @@ out:
 	nvmet_req_complete(req, status);
 }
 
+__maybe_unused
 static int nvmet_vhost_process_iotlb_msg(struct vhost_dev *dev,
 					 struct vhost_iotlb_msg *msg)
 {
@@ -677,9 +678,10 @@ nvmet_vhost_set_endpoint(struct nvmet_vhost_ctrl *ctrl,
 
 	//TODO: Determine if any locking is needed
 	if (IS_ERR(ctrl)) {
-	  pr_err("Pointer to ctrl is error %ld\n", PTR_ERR(ctrl));
+	  	pr_err("Pointer to ctrl is error %ld\n", PTR_ERR(ctrl));
 		return -EINVAL;
 	}
+	
 	pr_warn("Set endpoint start");
 	ctrl->num_queues = 1;
 	num_queues = ctrl->num_queues;
@@ -689,6 +691,7 @@ nvmet_vhost_set_endpoint(struct nvmet_vhost_ctrl *ctrl,
 		ret = -ENOMEM;
 		goto out_ctrl_put;
 	}
+
 	ctrl->sqs = kzalloc(sizeof(struct nvme_vhost_sq *) * num_queues, GFP_KERNEL);
 	if (!ctrl->sqs) {
 		ret = -ENOMEM;
@@ -954,6 +957,7 @@ static int nvmet_vhost_ioc_bar(struct nvmet_vhost_ctrl *ctrl, void __user *argp)
 	return ret;
 }
 
+__maybe_unused
 static int nvmet_vhost_open(struct inode *inode, struct file *f)
 {
 	struct nvmet_vhost_ctrl *ctrl = kzalloc(sizeof(struct nvmet_vhost_ctrl),
@@ -1096,7 +1100,9 @@ static long nvmet_vhost_ioctl(struct file *f, unsigned int ioctl,
 		return vhost_nvme_set_features(ctrl, features);
 	default:
 		mutex_lock(&ctrl->vdev.mutex);
-		r = vhost_dev_ioctl(&ctrl->vdev, ioctl, argp);
+		if (ioctl == VHOST_SET_OWNER) {
+			r = vhost_dev_set_owner(&ctrl->vdev);
+		}
 		mutex_unlock(&ctrl->vdev.mutex);
 		return r;
 	}
